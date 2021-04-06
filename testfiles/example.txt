@@ -1,0 +1,2 @@
+This is just a simple plain text file to test Kokwame.
+It should not bork if it cannot parse the file in the current buffer.
