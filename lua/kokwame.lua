@@ -8,14 +8,21 @@
 --    * 'range' = {line_start, col_start, line_end, col_end } of the name
 --    * 'metrics' = the metrics for that specific node
 
-local api = vim.api
-local exec = vim.cmd
-local lsputils = vim.lsp.util
-
 local tsutils = require('nvim-treesitter.ts_utils')
 local parsers = require('nvim-treesitter.parsers')
 
-local ns_id = api.nvim_create_namespace('')
+local PLUGIN_NAME = 'Kokwame'
+
+-- The default options, which can be overridden by passing an identically
+-- structured table as argument to the setup() function.
+local default_options = {
+
+  -- Should Kokwame be a diagnostic producer?
+  produce_diagnostics = false,
+
+}
+
+local ns_id = vim.api.nvim_create_namespace(PLUGIN_NAME)
 
 -- Cyclomatic complexity metric
 -- For every one of these operations 1 is added to the total value:
@@ -42,6 +49,7 @@ CyclomaticComplexityMetric.new = function(node)
     foreach_statement = 1,
     boolean_operator = 1,
     binary_expression = .50,
+    case_statement = 1,
   }
 
   -- Calculate this metric for a given node.
@@ -94,7 +102,7 @@ CyclomaticComplexityMetric.new = function(node)
       end_col = info.range[4],
       severity = severity,
       message = message,
-      source = 'TODO', -- TODO Lookup what this property is for.
+      source = PLUGIN_NAME,
     }
     return diagnostic
   end
@@ -186,15 +194,8 @@ local function all_metrics()
   return collect_info(parsers.get_tree_root(), {})
 end
 
--- The on_attach handler that will be called when an LSP client is attached to
--- a buffer.
---
--- @param vim.lsp.client client
--- @param int bufnr
--- TODO Keep diagnostics visible (atm. they only briefly display).
---      This seems only to be the case with pyright...
--- TODO Keep diagnostics in sync when editing a buffer.
-local function diagnostics(client, bufnr)
+-- Return a list of LSP diagnostic structures.
+local function get_diagnostics()
   local list = {}
   for _, each in ipairs(all_metrics()) do
     for _, metric in ipairs(each.metrics) do
@@ -203,11 +204,24 @@ local function diagnostics(client, bufnr)
       end
     end
   end
+  return list
+end
+
+-- Handler for textDocument/publishDiagnostics
+local function diagnostics(err, result, ctx, config)
   vim.diagnostic.set(
-    vim.lsp.diagnostic.get_namespace(client.id),
-    bufnr,
-    list
+    ns_id,
+    vim.api.nvim_get_current_buf(),
+    get_diagnostics()
   )
+ config.original_handler(err, result, ctx, config)
+end
+
+local function setup_lsp_diagnostics()
+  local original_handler = vim.lsp.handlers['textDocument/publishDiagnostics']
+  vim.lsp.handlers['textDocument/publishDiagnostics'] = vim.lsp.with(diagnostics, {
+    original_handler = original_handler,
+  })
 end
 
 -- Center a given text according to a given width.
@@ -247,11 +261,12 @@ local function open_metrics_window(info)
     row = -1,
 
     style = 'minimal',
-    border = 'rounded'
+    border = 'rounded',
   }
-  local buf = api.nvim_create_buf(false, true)
-  api.nvim_buf_set_lines(buf, 0, -1, true,  buf_lines)
-  api.nvim_open_win(buf, true, opts)
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, true,  buf_lines)
+  vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+  vim.api.nvim_open_win(buf, true, opts)
 end
 
 -- Is our cursor positioned in a given range?
@@ -260,31 +275,65 @@ end
 --  The range as {row_start, col_start, row_end, col_end}
 -- @return bool
 --  Whether or not the position of the cursor is in a given range.
-local function cursor_in_range(range)
+local function is_cursor_in_range(range)
   -- nvim_win_get_cursor() is 1-based, while ranges are 0-based
-  local row_cursor = api.nvim_win_get_cursor(0)[1] - 1
+  local row_cursor = vim.api.nvim_win_get_cursor(0)[1] - 1
   local row_node_start = range[1]
   local row_node_end = range[3]
   return row_cursor >= row_node_start and row_cursor <= row_node_end
 end
 
--- Toggle Kokwame for the current code unit.
-local function toggle()
-  -- TODO There's probably a more efficient way to find the relevant node_info
-  --      for the current cursor position.
+-- Show info for the current code unit.
+-- There's probably a more efficient way to find the relevant node_info for
+-- the current cursor position.
+-- But I've been experimenting with `tsutils.get_node_at_cursors()` and then
+-- traveling up the tree via `node:parent()` but this gets quite hairy if you
+-- want to take some expected UI behavior into account:
+-- Consider this PHP method where '|' is the cursor:
+--
+-- class Foo {
+-- |   public function foobar() {
+--     }
+-- }
+--
+-- Upon `:KokwameInfo` this will travel up the tree and find no relevant code
+-- unit.  So then one has to try the next node, etc... of course a lot of nil
+-- checking has to be done in between to check if we're still finding nodes;
+-- What if the cursor is at the end of the buffer, etc, etc, etc...
+-- It's quite ugly tbh. and I think more is gained by building a light weight
+-- structure of all the relevant nodes and gather metrics on a need-to-know
+-- basis.
+-- This together with tsutils.memoize_by_buf_tick should make fairly simple
+-- code that is performant enough to not worry about it.
+-- If not, we can still make it _very_ hairy ;-)
+local function info()
   for _, info in ipairs(all_metrics()) do
-    if cursor_in_range({info.node:range()}) then
+    if is_cursor_in_range({info.node:range()}) then
       open_metrics_window(info)
       break
     end
   end
 end
 
+-- Set the defaults on given options if they've not been set.
+local function set_defaults(opts)
+  local opts = opts or {}
+  for k, v in pairs(default_options) do
+    if opts[k] == nil then opts[k] = v end
+  end
+  return opts
+end
 
-exec [[ command KokwameToggle lua require'kokwame'.toggle() ]]
-
+-- Setup Kokwame
+local function setup(opts)
+  opts = set_defaults(opts)
+  vim.api.nvim_command('command! KokwameInfo lua require("kokwame").info()')
+  if opts.produce_diagnostics then
+    setup_lsp_diagnostics()
+  end
+end
 
 return {
-  toggle = toggle,
-  diagnostics = diagnostics,
+  info = info,
+  setup = setup,
 }

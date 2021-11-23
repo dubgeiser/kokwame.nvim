@@ -1,0 +1,84 @@
+*kokwame.txt*                     For Nvim 0.5+
+==============================================================================
+INTRODUCTION                                                         *kokwame*
+
+Kokwame is Neovim plugin for visualization code quality metrics.  It does so
+by combining Neovim's `treesitter` and `lsp` capabilities.  Contrary to most
+command line code checkers, Kokwame does not look at an entire code base or
+project, but rather at 1 code unit (a function, method, ...) at a time.
+
+Visualizing the metrics can be done in different ways: as per code unit via a
+single popup window, a so-called `floatwin` or by integrating with Neovim's
+LSP as a `diagnostic` provider for the current buffer.
+
+==============================================================================
+METRICS                                            *kokwame-supported-metrics*
+
+Kokwame supports following code quality metrics:
+
+ - Cyclomatic complexity
+ - ...
+ - ... That's all for now ;-)
+
+:TODO: Document possible configuration options if they exist.
+
+==============================================================================
+INSTALLATION                                                 *kokwame-install*
+
+Use your favorite package manager to install Kokwame.  There is no need for
+any special installation shenanigans, so the basic `Plug`, `use`, or whatever
+will suffice.  Kokwame depends on treesitter to do its job.  Here's an example
+using https://github.com/wbthomason/packer.nvim >
+
+    require('packer').startup(function()
+      use { 'nvim-treesitter/nvim-treesitter', run = ':TSUpdate' }
+      use 'dubgeiser/nvim-kokwame'
+    end)
+
+<And then issue the `:PackerSync` command.
+
+==============================================================================
+SETUP                                                          *kokwame-setup*
+
+Setup Kokwame with default options: >
+
+    require 'kokwame'.setup()
+
+<If you want to enable/disable stuff, you can pass in some options.  The
+example here uses the default options, which will have exactly the same effect
+as the `setup()` mentioned above. >
+
+    require'kokwame'.setup({
+      -- `true` will have Kokwame function as a diagnostic provider.
+      produce_diagnostics = false,
+    })
+<
+:TODO: List the configuration options.
+==============================================================================
+USAGE                                                          *kokwame-usage*
+
+There are basically two ways in which you can use Kokwame:
+
+                                                                *:KokwameInfo*
+:KokwameInfo    Issue this command in a code file; if the cursor is within a
+                code unit, a popup will be shown with the metrics of that code
+                unit.  If the cursor is not in a relevant code unit, Kokwame
+                remains silent.
+
+                                                          *kokwame-diagnostic*
+When Kokwame has been set up with the option `produce_diagnostics` set to
+true, it will integrate with Neovim's LSP and show inline diagnostics of the
+code units.
+It depends on the configuration of the metric if an inline hint, warning,
+error, etc... will be shown or not.
+
+:TODO: List default config per metric
+
+==============================================================================
+ABOUT                                                          *kokwame-about*
+
+Source code and issue tracker:
+
+https://github.com/dubgeiser/nvim-kokwame
+
+ vim:tw=78:et:ft=help:norl:
