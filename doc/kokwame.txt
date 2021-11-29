@@ -65,6 +65,15 @@ There are basically two ways in which you can use Kokwame:
                 unit.  If the cursor is not in a relevant code unit, Kokwame
                 remains silent.
 
+NOTE: Unfortunately, `:KokwameInfo` will not complete case insensitively in
+command mode; there is a command `:k` which does not require a space before
+its argument, meaning that ':ko' will be interpreted as 'place a mark and name
+it "o"'. More than 1 letter will result in a 'trailing chars' warning.  This
+is both in Neovim as well as Vim.
+Since I can't imagine not one user defined command starting with 'K' has ever
+been made, I'm thinking this is a 'bug' or 'feature' that will not be resolved
+or changed any time soon.
+
                                                           *kokwame-diagnostic*
 When Kokwame has been set up with the option `produce_diagnostics` set to
 true, it will integrate with Neovim's LSP and show inline diagnostics of the
