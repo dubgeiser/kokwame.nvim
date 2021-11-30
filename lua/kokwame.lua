@@ -22,6 +22,7 @@ local default_options = {
 
 }
 
+-- The ID of the namespace we'll be using for this plugin.
 local ns_id = vim.api.nvim_create_namespace(PLUGIN_NAME)
 
 -- Cyclomatic complexity metric
@@ -34,8 +35,8 @@ local CyclomaticComplexityMetric = {}
 
 -- Create a new metric
 --
--- @param TSNode node
---  The node that this metric will be applied to.
+-- @param TSNode node The node that this metric will be applied to.
+-- @return CyclomaticComplexityMetric
 CyclomaticComplexityMetric.new = function(node)
   local self = {}
   local value = nil
@@ -54,10 +55,9 @@ CyclomaticComplexityMetric.new = function(node)
 
   -- Calculate this metric for a given node.
   --
-  -- @param TSNode node
-  --  The node to calculate this metric for.
-  -- @param optional bool recursing default: flase
-  --  Whether or not we are recursing, only used internally.
+  -- @param TSNode node The node to calculate this metric for.
+  -- @param optional bool recursing default: false
+  --  Whether or not we are we are calling from within `calculate()` itself.
   local function calculate(node, recursing)
     recursing = recursing or false
     value = value or 0
@@ -74,15 +74,15 @@ CyclomaticComplexityMetric.new = function(node)
 
   -- Are we dealing with a problematic metric?
   --
-  -- @return bool
+  -- @return bool Whether or not we're dealing with a problematic metric.
   function self.is_problematic()
     return value > threshold_low
   end
 
-  -- @param table info
-  --  Info on the node that this metric belongs to.
-  -- @return table
-  --  Diagnostic structure, see `:help diagnostic-structure`
+  -- Convert this metric to a diagnostic structure.
+  --
+  -- @param table info Info on the node that this metric belongs to.
+  -- @return table Diagnostic structure, see `:help diagnostic-structure`
   function self.to_diagnostic(info)
     local severity = vim.diagnostic.severity.INFO
     local message = 'Cyclomatic Complexity: ' .. value
@@ -113,8 +113,7 @@ end
 -- Is the node of a certain type?
 --
 -- @param TSNode node
--- @param types table
---  List of types that must be considered.
+-- @param types table List of types that must be considered.
 local function is_type(node, types)
   local t = node:type()
   for _, ctype in ipairs(types) do
@@ -126,6 +125,9 @@ local function is_type(node, types)
 end
 
 -- Get metrics for a given node representing a relevant code unit.
+-- The given node should be a relevant node!
+--
+-- @param TSNode node The _relevant_ node to get metrics on.
 local function get_metrics(node)
   metric = CyclomaticComplexityMetric.new(node)
   local metrics = {
@@ -135,6 +137,9 @@ local function get_metrics(node)
 end
 
 -- Given a relevant node, find and return its naming node (identifier)
+--
+-- @param TSNode node The node to get the naming node for.
+-- @return TSNode The identifier node of the given node.
 local function get_name_node(node)
   for child in node:iter_children() do
     if is_type(child, {'identifier', 'name'}) then
@@ -154,6 +159,9 @@ end
 
 -- Build info for a node representing a code unit.
 -- Pre condition: is_relevant_unit(node)
+--
+-- @param TSNode node The node of the code unit to build an info structure for.
+-- @return table
 local function build_unit_info(node)
   local info = {}
   local identifier = get_name_node(node)
@@ -165,11 +173,21 @@ local function build_unit_info(node)
 end
 
 -- Is the given node a code unit that we care enough about to gather metrics for?
+--
+-- @param TSNode node The node to check for relevancy
+-- @return bool Whether or not the given node is a relevant code unit.
+-- TODO Rename to is_code_unit or something?
 local function is_relevant_unit(node)
   return is_type(node, {'function_definition', 'method_declaration'})
 end
 
 -- Collect info on a node.
+-- The children of the given node will be traversed recursively.
+--
+-- @param TSNode node The node to collect info on.
+-- @param table info The list of info structures where info on the given node
+--  will be added if we're dealing with a relevant node.
+-- @return table List of info structures of the given node and its children.
 local function collect_info(node, info)
   if is_relevant_unit(node) then
     table.insert(info, build_unit_info(node))
@@ -184,7 +202,7 @@ end
 --
 -- Collect all metrics for all relevant units for the file in the current buffer.
 -- TODO Rename: this returns a list of all the info of relevant nodes.
---
+-- @return table List of info structures of all the relevant nodes.
 local function all_metrics()
   if not parsers.has_parser() then
     return {}
@@ -193,6 +211,8 @@ local function all_metrics()
 end
 
 -- Return a list of LSP diagnostic structures.
+--
+-- @return table List of LSP diagnostic structures.
 local function get_diagnostics()
   local list = {}
   for _, each in ipairs(all_metrics()) do
@@ -206,6 +226,11 @@ local function get_diagnostics()
 end
 
 -- Handler for textDocument/publishDiagnostics
+--
+-- @param ? err
+-- @param ? result
+-- @param table ctx The context for the diagnostics
+-- @param table config Extra configuration; will contain the `original_handler`
 local function diagnostics(err, result, ctx, config)
   vim.diagnostic.set(
     ns_id,
@@ -215,6 +240,7 @@ local function diagnostics(err, result, ctx, config)
  config.original_handler(err, result, ctx, config)
 end
 
+-- Set up LSP diagnostics for Kokwame.
 local function setup_lsp_diagnostics()
   local original_handler = vim.lsp.handlers['textDocument/publishDiagnostics']
   vim.lsp.handlers['textDocument/publishDiagnostics'] = vim.lsp.with(diagnostics, {
@@ -223,21 +249,21 @@ local function setup_lsp_diagnostics()
 end
 
 -- Center a given text according to a given width.
+-- This will prepend the given text with spaces so that it will appear centered
+-- when displayed in a given width.
 --
--- @param string text
---  The text to align
--- @param int width
---  The width to which the text must be aligned.
--- @return string
---  The centered text
+-- @param string text The text to align
+-- @param int width The width to which the text must be aligned.
+-- @return string The centered text
 local function align_center(text, width)
   if #text >= width then return text end
   return string.rep(' ', math.floor((width - #text) / 2)) .. text
 end
 
 -- Open a window displaying the given code unit info
--- @param table info
---  The code unit info of which the metrics should be displayed in a window.
+--
+-- @param table info The code unit info of which the metrics should be
+--  displayed in a window.
 local function open_metrics_window(info)
   local lines = {}
   local max_width = #info.name
@@ -263,10 +289,8 @@ end
 
 -- Is our cursor positioned in a given range?
 --
--- @param table range
---  The range as {row_start, col_start, row_end, col_end}
--- @return bool
---  Whether or not the position of the cursor is in a given range.
+-- @param table range The range as {row_start, col_start, row_end, col_end}
+-- @return bool Whether or not the position of the cursor is in a given range.
 local function is_cursor_in_range(range)
   -- nvim_win_get_cursor() is 1-based, while ranges are 0-based
   local row_cursor = vim.api.nvim_win_get_cursor(0)[1] - 1
@@ -308,6 +332,9 @@ local function info()
 end
 
 -- Set the defaults on given options if they've not been set.
+--
+-- @param table opts The options to which the defaults will be added.
+-- @return table The given options with added defaults for unset options.
 local function set_defaults(opts)
   local opts = opts or {}
   for k, v in pairs(default_options) do
@@ -317,6 +344,9 @@ local function set_defaults(opts)
 end
 
 -- Setup Kokwame
+--
+-- @param table opts The options for Kokwame that will override the defaults.
+-- @see default_options
 local function setup(opts)
   opts = set_defaults(opts)
   vim.api.nvim_command('command! KokwameInfo lua require("kokwame").info()')
