@@ -241,32 +241,26 @@ end
 -- @param table info
 --  The code unit info of which the metrics should be displayed in a window.
 local function open_metrics_window(info)
-  local buf_lines = {}
+  local lines = {}
   local max_width = #info.name
   for i, metric in ipairs(info.metrics) do
     local line = ' '..i..'. '..metric.to_diagnostic(info).message..' '
     max_width = math.max(max_width, #line)
-    table.insert(buf_lines, line)
+    table.insert(lines, line)
   end
-  table.insert(buf_lines, 1, align_center(info.name, max_width))
-  table.insert(buf_lines, 2, '')
+  -- max_width - 2 because we begin the line with '# ' (markdown for title).
+  table.insert(lines, 1, '# '..align_center('Kokwame: `'..info.name..'`', max_width - 2))
+  table.insert(lines, 2, '')
   local opts = {
-    relative = 'cursor',
+    height = #lines, -- Including top/bottom padding if necessary
     width = max_width,
-    height = #buf_lines,
-
-    -- Make it look like the cursor stays in place.
-    anchor = 'NW',
-    col = -1,
-    row = -1,
-
-    style = 'minimal',
-    border = 'rounded',
+    max_width = 120,
+    wrap = true,
+    wrap_at = 120,
+    focusable = true,
+    focus = true,
   }
-  local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(buf, 0, -1, true,  buf_lines)
-  vim.api.nvim_buf_set_option(buf, 'modifiable', false)
-  vim.api.nvim_open_win(buf, true, opts)
+  vim.lsp.util.open_floating_preview(lines, 'markdown', opts)
 end
 
 -- Is our cursor positioned in a given range?
