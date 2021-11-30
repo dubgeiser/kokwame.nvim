@@ -60,9 +60,7 @@ CyclomaticComplexityMetric.new = function(node)
   --  Whether or not we are recursing, only used internally.
   local function calculate(node, recursing)
     recursing = recursing or false
-    if value == nil then
-      value = 0
-    end
+    value = value or 0
     for child in node:iter_children() do
       if meaningful_node_types[child:type()] then
         value = value + meaningful_node_types[child:type()]
@@ -313,7 +311,7 @@ end
 local function set_defaults(opts)
   local opts = opts or {}
   for k, v in pairs(default_options) do
-    if opts[k] == nil then opts[k] = v end
+    if not opts[k] then opts[k] = v end
   end
   return opts
 end
