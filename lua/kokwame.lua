@@ -272,15 +272,12 @@ local function open_metrics_window(info)
     max_width = math.max(max_width, #line)
     table.insert(lines, line)
   end
-  -- max_width - 2 because we begin the line with '# ' (markdown for title).
-  table.insert(lines, 1, '# '..align_center('Kokwame: `'..info.name..'`', max_width - 2))
+  table.insert(lines, 1, align_center(info.name, max_width))
   table.insert(lines, 2, '')
   local opts = {
     height = #lines, -- Including top/bottom padding if necessary
     width = max_width,
-    max_width = 120,
-    wrap = true,
-    wrap_at = 120,
+    wrap = false,
     focusable = true,
     focus = true,
   }
