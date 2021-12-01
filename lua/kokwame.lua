@@ -1,7 +1,7 @@
 -- Kokwame
 -- Code Quality Metrics
 -- Neovim lua module to calculate some code quality metrics on code units.
--- A unit is basically a function (or a method).
+-- A code unit is basically a TSNode of a function (or a method).
 -- Units are collected into a list of following table structure:
 --    * 'name' = the name
 --    * 'node' = the node itself
@@ -124,10 +124,10 @@ local function is_type(node, types)
   return false
 end
 
--- Get metrics for a given node representing a relevant code unit.
--- The given node should be a relevant node!
+-- Get metrics for a given node representing a code unit.
+-- The given node should be a code unit node!
 --
--- @param TSNode node The _relevant_ node to get metrics on.
+-- @param TSNode node The code unit to get metrics on.
 local function get_metrics(node)
   metric = CyclomaticComplexityMetric.new(node)
   local metrics = {
@@ -136,7 +136,7 @@ local function get_metrics(node)
   return metrics
 end
 
--- Given a relevant node, find and return its naming node (identifier)
+-- Given a code unit node, find and return its naming node (identifier)
 --
 -- @param TSNode node The node to get the naming node for.
 -- @return TSNode The identifier node of the given node.
@@ -151,14 +151,14 @@ local function get_name_node(node)
   error(
     'ERROR: Cannot find the name node.\n' ..
     'This probably means get_name_node() was called without checking the ' ..
-    'result of is_relevant_unit() on that same node.\n' ..
+    'result of is_code_unit() on that same node.\n' ..
     'Or there is another type() of children of node that is not yet ' ..
     'accounted for in get_name_node()'
   )
 end
 
 -- Build info for a node representing a code unit.
--- Pre condition: is_relevant_unit(node)
+-- Pre condition: is_code_unit(node)
 --
 -- @param TSNode node The node of the code unit to build an info structure for.
 -- @return table
@@ -175,9 +175,8 @@ end
 -- Is the given node a code unit that we care enough about to gather metrics for?
 --
 -- @param TSNode node The node to check for relevancy
--- @return bool Whether or not the given node is a relevant code unit.
--- TODO Rename to is_code_unit or something?
-local function is_relevant_unit(node)
+-- @return bool Whether or not the given node is a code unit.
+local function is_code_unit(node)
   return is_type(node, {'function_definition', 'method_declaration'})
 end
 
@@ -186,10 +185,10 @@ end
 --
 -- @param TSNode node The node to collect info on.
 -- @param table info The list of info structures where info on the given node
---  will be added if we're dealing with a relevant node.
+--  will be added if we're dealing with a code unit.
 -- @return table List of info structures of the given node and its children.
 local function collect_info(node, info)
-  if is_relevant_unit(node) then
+  if is_code_unit(node) then
     table.insert(info, build_unit_info(node))
   else
     for child in node:iter_children() do
@@ -200,9 +199,9 @@ local function collect_info(node, info)
 end
 
 --
--- Collect all metrics for all relevant units for the file in the current buffer.
--- TODO Rename: this returns a list of all the info of relevant nodes.
--- @return table List of info structures of all the relevant nodes.
+-- Collect all metrics for all code units for the file in the current buffer.
+-- TODO Rename: this returns a list of all the info on all the code units.
+-- @return table List of info structures of all the code units.
 local function all_metrics()
   if not parsers.has_parser() then
     return {}
@@ -309,10 +308,10 @@ end
 --     }
 -- }
 --
--- Upon `:KokwameInfo` this will travel up the tree and find no relevant code
--- unit.  So then one has to try the next node, etc... of course a lot of nil
--- checking has to be done in between to check if we're still finding nodes;
--- What if the cursor is at the end of the buffer, etc, etc, etc...
+-- Upon `:KokwameInfo` this will travel up the tree and find no code unit.
+-- So then one has to try the next node, etc... of course a lot of nil checking
+-- has to be done in between to check if we're still finding nodes; What if the
+-- cursor is at the end of the buffer, etc, etc, etc...
 -- It's quite ugly tbh. and I think more is gained by building a light weight
 -- structure of all the relevant nodes and gather metrics on a need-to-know
 -- basis.
