@@ -162,7 +162,7 @@ end
 --
 -- @param TSNode node The node of the code unit to build an info structure for.
 -- @return table
-local function build_unit_info(node)
+local function build_code_unit_info(node)
   local info = {}
   local identifier = get_name_node(node)
   info.node = node
@@ -180,33 +180,32 @@ local function is_code_unit(node)
   return is_type(node, {'function_definition', 'method_declaration'})
 end
 
--- Collect info on a node.
+-- Collect info about code units.
 -- The children of the given node will be traversed recursively.
 --
 -- @param TSNode node The node to collect info on.
 -- @param table info The list of info structures where info on the given node
---  will be added if we're dealing with a code unit.
+--  will be collected... but only if we're dealing with a code unit.
 -- @return table List of info structures of the given node and its children.
-local function collect_info(node, info)
+local function collect_code_unit_info(node, info)
   if is_code_unit(node) then
-    table.insert(info, build_unit_info(node))
+    table.insert(info, build_code_unit_info(node))
   else
     for child in node:iter_children() do
-      collect_info(child, info)
+      collect_code_unit_info(child, info)
     end
   end
   return info
 end
 
+-- Collect all info in the current buffer.
 --
--- Collect all metrics for all code units for the file in the current buffer.
--- TODO Rename: this returns a list of all the info on all the code units.
 -- @return table List of info structures of all the code units.
-local function all_metrics()
+local function all_info()
   if not parsers.has_parser() then
     return {}
   end
-  return collect_info(parsers.get_tree_root(), {})
+  return collect_code_unit_info(parsers.get_tree_root(), {})
 end
 
 -- Return a list of LSP diagnostic structures.
@@ -214,7 +213,7 @@ end
 -- @return table List of LSP diagnostic structures.
 local function get_diagnostics()
   local list = {}
-  for _, each in ipairs(all_metrics()) do
+  for _, each in ipairs(all_info()) do
     for _, metric in ipairs(each.metrics) do
       if metric.is_problematic() then
         table.insert(list, metric.to_diagnostic(each))
@@ -319,7 +318,7 @@ end
 -- code that is performant enough to not worry about it.
 -- If not, we can still make it _very_ hairy ;-)
 local function info()
-  for _, info in ipairs(all_metrics()) do
+  for _, info in ipairs(all_info()) do
     if is_cursor_in_range({info.node:range()}) then
       open_metrics_window(info)
       break
