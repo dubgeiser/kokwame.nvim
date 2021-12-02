@@ -3,13 +3,14 @@
 INTRODUCTION                                                         *kokwame*
 
 Kokwame is Neovim plugin for visualization code quality metrics.  It does so
-by combining Neovim's `treesitter` and `lsp` capabilities.  Contrary to most
-command line code checkers, Kokwame does not look at an entire code base or
-project, but rather at 1 code unit (a function, method, ...) at a time.
+by combining Neovim's `treesitter` and `vim.diagnostic` capabilities.
+Contrary to most command line code checkers, Kokwame does not look at an
+entire code base or project, but rather at 1 code unit (a function, method,
+...) at a time.
 
 Visualizing the metrics can be done in different ways: as per code unit via a
 single popup window, a so-called `floatwin` or by integrating with Neovim's
-LSP as a `diagnostic` provider for the current buffer.
+LSP as a `diagnostic` producer for the current buffer.
 
 ==============================================================================
 METRICS                                            *kokwame-supported-metrics*
@@ -49,8 +50,8 @@ example here uses the default options, which will have exactly the same effect
 as the `setup()` mentioned above. >
 
     require'kokwame'.setup({
-      -- `true` will have Kokwame function as a diagnostic provider.
-      produce_diagnostics = false,
+      -- `true` will have Kokwame function as a diagnostic producer.
+      is_diagnostic_producer = false,
     })
 <
 :TODO: List the configuration options.
@@ -75,9 +76,8 @@ been made, I'm thinking this is a 'bug' or 'feature' that will not be resolved
 or changed any time soon.
 
                                                           *kokwame-diagnostic*
-When Kokwame has been set up with the option `produce_diagnostics` set to
-true, it will integrate with Neovim's LSP and show inline diagnostics of the
-code units.
+When Kokwame has been set up with the option `is_diagnostic_producer` set to
+true, it will use Neovim's LSP and show inline diagnostics of the code units.
 It depends on the configuration of the metric if an inline hint, warning,
 error, etc... will be shown or not.
 

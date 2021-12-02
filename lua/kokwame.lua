@@ -20,7 +20,7 @@ local PLUGIN_NAME = 'Kokwame'
 local default_options = {
 
   -- Should Kokwame be a diagnostic producer?
-  produce_diagnostics = false,
+  is_diagnostic_producer = false,
 
 }
 
@@ -227,9 +227,9 @@ local function all_info()
   return collect_code_unit_info(parsers.get_tree_root(), {})
 end
 
--- Return a list of LSP diagnostic structures.
+-- Return a list of diagnostic structures.
 --
--- @return table List of LSP diagnostic structures.
+-- @return table List of diagnostic structures.
 local function get_diagnostics()
   local list = {}
   for _, each in ipairs(all_info()) do
@@ -257,8 +257,8 @@ local function diagnostics(err, result, ctx, config)
  config.original_handler(err, result, ctx, config)
 end
 
--- Set up LSP diagnostics for Kokwame.
-local function setup_lsp_diagnostics()
+-- Set up Kokwame as diagnostic producer.
+local function setup_diagnostic_producer()
   local original_handler = vim.lsp.handlers['textDocument/publishDiagnostics']
   vim.lsp.handlers['textDocument/publishDiagnostics'] = vim.lsp.with(diagnostics, {
     original_handler = original_handler,
@@ -364,8 +364,8 @@ end
 local function setup(opts)
   opts = set_defaults(opts)
   vim.api.nvim_command('command! KokwameInfo lua require("kokwame").info()')
-  if opts.produce_diagnostics then
-    setup_lsp_diagnostics()
+  if opts.is_diagnostic_producer then
+    setup_diagnostic_producer()
   end
 end
 
