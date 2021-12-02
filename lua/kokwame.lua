@@ -148,9 +148,8 @@ end
 --
 -- @param TSNode node The code unit to get metrics on.
 local function get_metrics(node)
-  metric = CyclomaticComplexityMetric.new(node)
   local metrics = {
-    metric,
+    CyclomaticComplexityMetric.new(node),
   }
   return metrics
 end
