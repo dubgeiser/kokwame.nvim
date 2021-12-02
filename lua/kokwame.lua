@@ -24,6 +24,23 @@ local default_options = {
 
 }
 
+-- The node types that are considered to be code units.
+local code_unit_node_types = {
+  'function_definition',
+  'method_declaration',
+}
+
+-- The node types that are considered to be a declaration of a code unit.
+local code_unit_declaration_types = {
+  'function_declarator',
+}
+
+-- The node types that are considered to be a name of a code unit.
+local code_unit_name_node_types = {
+  'identifier',
+  'name',
+}
+
 -- The ID of the namespace we'll be using for this plugin.
 local ns_id = vim.api.nvim_create_namespace(PLUGIN_NAME)
 
@@ -144,9 +161,9 @@ end
 -- @return TSNode The identifier node of the given node.
 local function get_name_node(node)
   for child in node:iter_children() do
-    if is_type(child, {'identifier', 'name'}) then
+    if is_type(child, code_unit_name_node_types) then
       return child
-    elseif is_type(child, {'function_declarator'}) then
+    elseif is_type(child, code_unit_declaration_types) then
       return get_name_node(child)
     end
   end
@@ -179,7 +196,7 @@ end
 -- @param TSNode node The node to check for relevancy
 -- @return bool Whether or not the given node is a code unit.
 local function is_code_unit(node)
-  return is_type(node, {'function_definition', 'method_declaration'})
+  return is_type(node, code_unit_node_types)
 end
 
 -- Collect info about code units.
