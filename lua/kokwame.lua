@@ -7,6 +7,8 @@
 --    * 'node' = the node itself
 --    * 'range' = {line_start, col_start, line_end, col_end } of the name
 --    * 'metrics' = the metrics for that specific node
+-- See the function `build_code_unit_info` for the real code version of this
+-- structure.
 
 local tsutils = require('nvim-treesitter.ts_utils')
 local parsers = require('nvim-treesitter.parsers')
