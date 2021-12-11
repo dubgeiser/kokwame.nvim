@@ -33,7 +33,7 @@ using https://github.com/wbthomason/packer.nvim >
 
     require('packer').startup(function()
       use { 'nvim-treesitter/nvim-treesitter', run = ':TSUpdate' }
-      use 'dubgeiser/nvim-kokwame'
+      use 'dubgeiser/kokwame.nvim'
     end)
 
 <And then issue the `:PackerSync` command.
@@ -88,6 +88,6 @@ ABOUT                                                          *kokwame-about*
 
 Source code and issue tracker:
 
-https://github.com/dubgeiser/nvim-kokwame
+https://github.com/dubgeiser/kokwame.nvim
 
  vim:tw=78:et:ft=help:norl:
