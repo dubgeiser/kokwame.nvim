@@ -10,8 +10,14 @@
 -- See the function `build_code_unit_info` for the real code version of this
 -- structure.
 
-local tsutils = require('nvim-treesitter.ts_utils')
 local parsers = require('nvim-treesitter.parsers')
+
+-- Use `currbuf()` to get the current buffer!
+--
+-- Reads fine as "current buffer" and is way less greedy on line length.
+-- And separating it in a local function provides opportunity to build in some
+-- lazy loading / caching later down the line.
+local currbuf = vim.api.nvim_get_current_buf
 
 local PLUGIN_NAME = 'Kokwame'
 
@@ -184,7 +190,7 @@ local function build_code_unit_info(node)
   local info = {}
   local identifier = get_name_node(node)
   info.node = node
-  info.name = tsutils.get_node_text(identifier)[1]
+  info.name = vim.treesitter.query.get_node_text(identifier, currbuf())
   info.range = {identifier:range()}
   info.metrics = get_metrics(node)
   return info
@@ -248,11 +254,7 @@ end
 -- @param table ctx The context for the diagnostics
 -- @param table config Extra configuration; will contain the `original_handler`
 local function diagnostics(err, result, ctx, config)
-  vim.diagnostic.set(
-    ns_id,
-    vim.api.nvim_get_current_buf(),
-    get_diagnostics()
-  )
+  vim.diagnostic.set(ns_id, currbuf(), get_diagnostics())
  config.original_handler(err, result, ctx, config)
 end
 
