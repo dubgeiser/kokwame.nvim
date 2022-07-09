@@ -160,6 +160,18 @@ local function get_metrics(node)
   return metrics
 end
 
+local function node2str(node)
+  local range = {node:range()}
+  local start_row = range[1] + 1
+  local start_col = range[2]
+  local end_row = range[3] + 1
+  local end_col = range[4]
+  return node:type() ..
+    ' (' .. start_row .. ', ' .. start_col .. ')' ..
+    ' -> ' ..
+  '(' .. end_row .. ', ' .. end_col .. ')'
+end
+
 -- Given a code unit node, find and return its naming node (identifier)
 --
 -- @param TSNode node The node to get the naming node for.
@@ -173,7 +185,7 @@ local function get_name_node(node)
     end
   end
   error(
-    'ERROR: Cannot find the name node.\n' ..
+    'ERROR: Cannot find the name node [' .. node2str(node) .. ']\n' ..
     'This probably means get_name_node() was called without checking the ' ..
     'result of is_code_unit() on that same node.\n' ..
     'Or there is another type() of children of node that is not yet ' ..
