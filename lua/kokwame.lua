@@ -1,14 +1,19 @@
--- Kokwame
--- Code Quality Metrics
--- Neovim lua module to calculate some code quality metrics on code units.
--- A code unit is basically a TSNode of a function (or a method).
--- Units are collected into a list of following table structure:
---    * 'name' = the name
---    * 'node' = the node itself
---    * 'range' = {line_start, col_start, line_end, col_end } of the name
---    * 'metrics' = the metrics for that specific node
--- See the function `build_code_unit_info` for the real code version of this
--- structure.
+--[[ Kokwame - Code Quality Metrics
+
+  Neovim lua module to calculate some code quality metrics on function points.
+
+  A function point is basically a TSNode of a function, method, ...
+  These function points are collected into a list, each element in following
+  table structure:
+
+     * 'name' = the name
+     * 'node' = the node itself
+     * 'range' = {line_start, col_start, line_end, col_end } of the name
+     * 'metrics' = the metrics for that specific node
+
+  See the function `build_function_point_info` for the real code version of
+  this structure.
+]]
 
 local parsers = require('nvim-treesitter.parsers')
 
@@ -24,25 +29,23 @@ local PLUGIN_NAME = 'Kokwame'
 -- The default options, which can be overridden by passing an identically
 -- structured table as argument to the setup() function.
 local default_options = {
-
   -- Should Kokwame be a diagnostic producer?
   is_diagnostic_producer = false,
-
 }
 
--- The node types that are considered to be code units.
-local code_unit_node_types = {
+-- The node types that are considered to be function points.
+local node_types = {
   'function_definition',
   'method_declaration',
 }
 
--- The node types that are considered to be a declaration of a code unit.
-local code_unit_declaration_types = {
+-- The node types that are considered to be the declaration of a function point.
+local declaration_node_types = {
   'function_declarator',
 }
 
--- The node types that are considered to be a name of a code unit.
-local code_unit_name_node_types = {
+-- The node types that are considered to be a name of a function point.
+local name_node_types = {
   'identifier',
   'name',
 }
@@ -50,18 +53,20 @@ local code_unit_name_node_types = {
 -- The ID of the namespace we'll be using for this plugin.
 local ns_id = vim.api.nvim_create_namespace(PLUGIN_NAME)
 
--- Cyclomatic complexity metric
--- For every one of these operations 1 is added to the total value:
---    * Every branch of a condition (if / elif / else)
---    * Every iteration
---    * Every logical operator
---    * The entry point of the method or function
-local CyclomaticComplexityMetric = {}
 
--- Create a new metric
---
--- @param TSNode node The node that this metric will be applied to.
--- @return CyclomaticComplexityMetric
+--[[ Create a new cyclomatic complexity metric.
+
+  Return a new CyclomaticComplexityMetric for a given function point node.
+
+  For every one of these operations 1 is added to the total value:
+     * Every branch of a condition (if / elif / else)
+     * Every iteration
+     * Every logical operator
+     * The entry point of the method or function
+
+  {node} TSNode The node that this metric will be applied to.
+]]
+local CyclomaticComplexityMetric = {}
 CyclomaticComplexityMetric.new = function(node)
   local self = {}
   local value = nil
@@ -78,11 +83,12 @@ CyclomaticComplexityMetric.new = function(node)
     case_statement = 1,
   }
 
-  -- Calculate this metric for a given node.
-  --
-  -- @param TSNode node The node to calculate this metric for.
-  -- @param optional bool recursing default: false
-  --  Whether or not we are we are calling from within `calculate()` itself.
+  --[[ Calculate this metric for a given node.
+
+    {node} TSNode The function point node to calculate this metric for.
+    {recursing} boolean Optional toggle to indicate that we are calling from
+                `calculate` itself.
+  ]]
   local function calculate(node, recursing)
     recursing = recursing or false
     value = value or 0
@@ -93,21 +99,26 @@ CyclomaticComplexityMetric.new = function(node)
       calculate(child, true)
     end
     if not recursing then
-      value = value + 1 -- +1 for entry point of the code unit
+      -- The function point itself counts too.
+      value = value + 1
     end
   end
 
-  -- Are we dealing with a problematic metric?
-  --
-  -- @return bool Whether or not we're dealing with a problematic metric.
+  --[[ Are we dealing with a problematic metric?
+
+    Return a boolean indicating whether or not we're dealing with a problematic
+    result for this metric.
+  ]]
   function self.is_problematic()
     return value > threshold_low
   end
 
-  -- Convert this metric to a diagnostic structure.
-  --
-  -- @param table info Info on the node that this metric belongs to.
-  -- @return table Diagnostic structure, see `:help diagnostic-structure`
+  --[[ Convert this metric to a diagnostic structure.
+
+    Build and return this metric as an LSP diagnostic structure.
+
+    {info} table Information on the node that this metric belongs to.
+  ]]
   function self.to_diagnostic(info)
     local severity = vim.diagnostic.severity.INFO
     local message = 'Cyclomatic Complexity: ' .. value
@@ -135,10 +146,15 @@ CyclomaticComplexityMetric.new = function(node)
   return self
 end
 
--- Is the node of a certain type?
---
--- @param TSNode node
--- @param types table List of types that must be considered.
+
+--[[ Is the node of a certain type?
+
+  Return a boolean indicating whether or not the type of the given node is in
+  the list of given node types.
+
+  {node} TSNode The node to check agains a list of types.
+  {types} table The list of node types to check against.
+]]
 local function is_type(node, types)
   local t = node:type()
   for _, ctype in ipairs(types) do
@@ -149,10 +165,13 @@ local function is_type(node, types)
   return false
 end
 
--- Get metrics for a given node representing a code unit.
--- The given node should be a code unit node!
---
--- @param TSNode node The code unit to get metrics on.
+
+--[[ Get metrics for a given node representing a function point.
+
+  Pre condition: is_function_point(node)
+
+  {node} TSNode The function point node to get metrics on.
+]]
 local function get_metrics(node)
   local metrics = {
     CyclomaticComplexityMetric.new(node),
@@ -160,6 +179,11 @@ local function get_metrics(node)
   return metrics
 end
 
+
+--[[ Return a string representation of a given node.
+
+  {node} TSNode The node to build a string representation for.
+]]
 local function node2str(node)
   local range = {node:range()}
   local start_row = range[1] + 1
@@ -172,81 +196,96 @@ local function node2str(node)
   '(' .. end_row .. ', ' .. end_col .. ')'
 end
 
--- Given a code unit node, find and return its naming node (identifier)
---
--- @param TSNode node The node to get the naming node for.
--- @return TSNode The identifier node of the given node.
+
+--[[ Given a function point node, find and return its naming node (identifier)
+
+  Return a TSNode that is the identifier node of the given node.
+
+  {node} TSNode The node to get the naming node for.
+]]
 local function get_name_node(node)
   for child in node:iter_children() do
-    if is_type(child, code_unit_name_node_types) then
+    if is_type(child, name_node_types) then
       return child
-    elseif is_type(child, code_unit_declaration_types) then
+    elseif is_type(child, declaration_node_types) then
       return get_name_node(child)
     end
   end
   error(
     'ERROR: Cannot find the name node [' .. node2str(node) .. ']\n' ..
     'This probably means get_name_node() was called without checking the ' ..
-    'result of is_code_unit() on that same node.\n' ..
+    'result of is_function_point() on that same node.\n' ..
     'Or there is another type() of children of node that is not yet ' ..
     'accounted for in get_name_node()'
   )
 end
 
--- Build info for a node representing a code unit.
--- Pre condition: is_code_unit(node)
---
--- @param TSNode node The node of the code unit to build an info structure for.
--- @return table
-local function build_code_unit_info(node)
-  local info = {}
-  local identifier = get_name_node(node)
-  info.node = node
-  info.name = vim.treesitter.query.get_node_text(identifier, currbuf())
-  info.range = {identifier:range()}
-  info.metrics = get_metrics(node)
-  return info
-end
 
--- Is the given node a code unit that we care enough about to gather metrics for?
---
--- @param TSNode node The node to check for relevancy
--- @return bool Whether or not the given node is a code unit.
-local function is_code_unit(node)
-  return is_type(node, code_unit_node_types)
-end
+--[[ Collect and return all info in the current buffer.
 
--- Collect info about code units.
--- The children of the given node will be traversed recursively.
---
--- @param TSNode node The node to collect info on.
--- @param table info The list of info structures where info on the given node
---  will be collected... but only if we're dealing with a code unit.
--- @return table List of info structures of the given node and its children.
-local function collect_code_unit_info(node, info)
-  if is_code_unit(node) then
-    table.insert(info, build_code_unit_info(node))
-  else
-    for child in node:iter_children() do
-      collect_code_unit_info(child, info)
-    end
-  end
-  return info
-end
-
--- Collect all info in the current buffer.
---
--- @return table List of info structures of all the code units.
+  Return a table listing up all the info structs of all the funcion points.
+]]
 local function all_info()
-  if not parsers.has_parser() then
-    return {}
+
+  if not parsers.has_parser() then return {} end
+
+  --[[ Is the given node a function point node?
+
+    Return `true` if the given node is considered to a function point.
+
+    {node} TSNode The node to check for being a function point or not.
+  ]]
+  local function is_function_point(node)
+    return is_type(node, node_types)
   end
-  return collect_code_unit_info(parsers.get_tree_root(), {})
+
+  --[[ Build info for a function point node
+
+    Pre condition: is_function_point(node)
+
+    Return a table with information on the function point node.
+
+    {node} TSNode Function point node to build an info struct for.
+  ]]
+  local function build_function_point_info(node)
+    local info = {}
+    local identifier = get_name_node(node)
+    info.node = node
+    info.name = vim.treesitter.query.get_node_text(identifier, currbuf())
+    info.range = {identifier:range()}
+    info.metrics = get_metrics(node)
+    return info
+  end
+
+  --[[ Collect and return info about a function point node
+
+    Return a table with info on each function point.
+    Recursively traverse the whole node.
+
+    {node} TSNode Node to collect info on.
+    {info} table The list of info structures where info on the given node
+           will be collected... but only if we're dealing with a function point.
+  ]]
+  local function collect_function_point_info(node, info)
+    if is_function_point(node) then
+      table.insert(info, build_function_point_info(node))
+    else
+      for child in node:iter_children() do
+        collect_function_point_info(child, info)
+      end
+    end
+    return info
+  end
+
+  return collect_function_point_info(parsers.get_tree_root(), {})
 end
 
--- Return a list of diagnostic structures.
---
--- @return table List of diagnostic structures.
+
+--[[ Return a list of diagnostic structures.
+
+  Return a table containing the diagnostics for each function point that needs
+  some attention.
+]]
 local function get_diagnostics()
   local list = {}
   for _, each in ipairs(all_info()) do
@@ -259,18 +298,22 @@ local function get_diagnostics()
   return list
 end
 
--- Handler for textDocument/publishDiagnostics
---
--- @param ? err
--- @param ? result
--- @param table ctx The context for the diagnostics
--- @param table config Extra configuration; will contain the `original_handler`
+
+--[[ Handler for textDocument/publishDiagnostics
+
+  {err} ???
+  {result} ???
+  {ctx} table   The context for the diagnostics.
+  {config} table  Extra configuration; this will contain the `original_handler`
+]]
 local function diagnostics(err, result, ctx, config)
   vim.diagnostic.set(ns_id, currbuf(), get_diagnostics())
  config.original_handler(err, result, ctx, config)
 end
 
--- Set up Kokwame as diagnostic producer.
+
+--[[ Set up Kokwame as diagnostic producer.
+]]
 local function setup_diagnostic_producer()
   local original_handler = vim.lsp.handlers['textDocument/publishDiagnostics']
   vim.lsp.handlers['textDocument/publishDiagnostics'] = vim.lsp.with(diagnostics, {
@@ -278,22 +321,26 @@ local function setup_diagnostic_producer()
   })
 end
 
--- Center a given text according to a given width.
--- This will prepend the given text with spaces so that it will appear centered
--- when displayed in a given width.
---
--- @param string text The text to align
--- @param int width The width to which the text must be aligned.
--- @return string The centered text
+
+--[[ Center a given text according to a given width.
+
+  Return a string with givnen text centered.
+  This will prepend the given text with spaces so that it will appear centered
+  when displayed in a given width.
+
+  {text} string The text that must be centered.
+  {width} int   The width to which the text must bbe centered.
+]]
 local function align_center(text, width)
   if #text >= width then return text end
   return string.rep(' ', math.floor((width - #text) / 2)) .. text
 end
 
--- Open a window displaying the given code unit info
---
--- @param table info The code unit info of which the metrics should be
---  displayed in a window.
+
+--[[ Open a window displaying the given function point info
+
+  {info} table Function point info containing the metrics to display.
+]]
 local function open_metrics_window(info)
   local lines = {}
   local max_width = #info.name
@@ -314,10 +361,13 @@ local function open_metrics_window(info)
   vim.lsp.util.open_floating_preview(lines, 'markdown', opts)
 end
 
--- Is our cursor positioned in a given range?
---
--- @param table range The range as {row_start, col_start, row_end, col_end}
--- @return bool Whether or not the position of the cursor is in a given range.
+
+--[[ Is our cursor positioned in a given range?
+
+  Return `true` if the cursor is currently in a given range.
+
+  {range} table The range as {row_start, col_start, row_end, col_end}
+]]
 local function is_cursor_in_range(range)
   -- nvim_win_get_cursor() is 1-based, while ranges are 0-based
   local row_cursor = vim.api.nvim_win_get_cursor(0)[1] - 1
@@ -326,29 +376,32 @@ local function is_cursor_in_range(range)
   return row_cursor >= row_node_start and row_cursor <= row_node_end
 end
 
--- Show info for the current code unit.
--- There's probably a more efficient way to find the relevant node_info for
--- the current cursor position.
--- But I've been experimenting with `tsutils.get_node_at_cursors()` and then
--- traveling up the tree via `node:parent()` but this gets quite hairy if you
--- want to take some expected UI behavior into account:
--- Consider this PHP method where '|' is the cursor:
---
--- class Foo {
--- |   public function foobar() {
---     }
--- }
---
--- Upon `:KokwameInfo` this will travel up the tree and find no code unit.
--- So then one has to try the next node, etc... of course a lot of nil checking
--- has to be done in between to check if we're still finding nodes; What if the
--- cursor is at the end of the buffer, etc, etc, etc...
--- It's quite ugly tbh. and I think more is gained by building a light weight
--- structure of all the relevant nodes and gather metrics on a need-to-know
--- basis.
--- This together with tsutils.memoize_by_buf_tick should make fairly simple
--- code that is performant enough to not worry about it.
--- If not, we can still make it _very_ hairy ;-)
+
+--[[ Show info for the current function point.
+
+  There's probably a more efficient way to find the relevant node_info for
+  the current cursor position.
+  But I've been experimenting with `tsutils.get_node_at_cursors()` and then
+  traveling up the tree via `node:parent()` but this gets quite hairy if you
+  want to take some expected UI behavior into account:
+  Consider this PHP method where '|' is the cursor:
+
+    class Foo {
+    |   public function foobar() {
+        }
+    }
+
+  Upon `:KokwameInfo` this will travel up the tree and find no function point.
+  So then one has to try the next node, etc... of course a lot of nil checking
+  has to be done in between to check if we're still finding nodes; What if the
+  cursor is at the end of the buffer, etc, etc, etc...
+  It's quite ugly tbh. and I think more is gained by building a light weight
+  structure of all the relevant nodes and gather metrics on a need-to-know
+  basis.
+  This together with tsutils.memoize_by_buf_tick should make fairly simple
+  code that is performant enough to not worry about it.
+  If not, we can still make it _very_ hairy ;-)
+]]
 local function info()
   for _, info in ipairs(all_info()) do
     if is_cursor_in_range({info.node:range()}) then
@@ -358,11 +411,15 @@ local function info()
   end
 end
 
--- Set the defaults on given options if they've not been set.
---
--- @param table opts The options to which the defaults will be added.
--- @return table The given options with added defaults for unset options.
-local function set_defaults(opts)
+
+--[[ Complete given options with defaults.
+
+  Return a table with all required options set.
+  See `default_options` for a list of options that Kokwame uses.
+
+  {opts} table The options to which default values for unset options will be added.
+]]
+local function complete_options(opts)
   local opts = opts or {}
   for k, v in pairs(default_options) do
     if not opts[k] then opts[k] = v end
@@ -370,17 +427,20 @@ local function set_defaults(opts)
   return opts
 end
 
--- Setup Kokwame
---
--- @param table opts The options for Kokwame that will override the defaults.
--- @see default_options
+
+--[[ Setup Kokwame
+
+  {opts} table Options for kokwame that will override the defaults.
+         See: default_options
+]]
 local function setup(opts)
-  opts = set_defaults(opts)
+  opts = complete_options(opts)
   vim.api.nvim_command('command! KokwameInfo lua require("kokwame").info()')
   if opts.is_diagnostic_producer then
     setup_diagnostic_producer()
   end
 end
+
 
 return {
   info = info,
