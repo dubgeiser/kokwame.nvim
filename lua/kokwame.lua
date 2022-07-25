@@ -54,6 +54,7 @@ local name_node_types = {
 local ns_id = vim.api.nvim_create_namespace(PLUGIN_NAME)
 
 
+local CyclomaticComplexityMetric = {}
 --[[ Create a new cyclomatic complexity metric.
 
   Return a new CyclomaticComplexityMetric for a given function point node.
@@ -64,9 +65,8 @@ local ns_id = vim.api.nvim_create_namespace(PLUGIN_NAME)
      * Every logical operator
      * The entry point of the method or function
 
-  {node} TSNode The node that this metric will be applied to.
+  @param TSNode node The node that this metric will be applied to.
 ]]
-local CyclomaticComplexityMetric = {}
 CyclomaticComplexityMetric.new = function(node)
   local self = {}
   local value = nil
@@ -85,9 +85,9 @@ CyclomaticComplexityMetric.new = function(node)
 
   --[[ Calculate this metric for a given node.
 
-    {node} TSNode The function point node to calculate this metric for.
-    {recursing} boolean Optional toggle to indicate that we are calling from
-                `calculate` itself.
+    @param TSNode node The function point node to calculate this metric for.
+    @param boolean recursing Optional toggle indicating that we are calling from
+      `calculate` itself.
   ]]
   local function calculate(node, recursing)
     recursing = recursing or false
@@ -106,8 +106,8 @@ CyclomaticComplexityMetric.new = function(node)
 
   --[[ Are we dealing with a problematic metric?
 
-    Return a boolean indicating whether or not we're dealing with a problematic
-    result for this metric.
+    @return boolean Whether or not we're dealing with a problematic result for
+      this metric.
   ]]
   function self.is_problematic()
     return value > threshold_low
@@ -117,7 +117,7 @@ CyclomaticComplexityMetric.new = function(node)
 
     Build and return this metric as an LSP diagnostic structure.
 
-    {info} table Information on the node that this metric belongs to.
+    @param table info Information on the node that this metric belongs to.
   ]]
   function self.to_diagnostic(info)
     local severity = vim.diagnostic.severity.INFO
@@ -149,11 +149,10 @@ end
 
 --[[ Is the node of a certain type?
 
-  Return a boolean indicating whether or not the type of the given node is in
-  the list of given node types.
-
-  {node} TSNode The node to check agains a list of types.
-  {types} table The list of node types to check against.
+  @param TSNode node The node to check agains a list of types.
+  @param table types The list of node types to check against.
+  @return boolean Whether or not the type of the given node is in the list of
+    given node types.
 ]]
 local function is_type(node, types)
   local t = node:type()
@@ -170,7 +169,7 @@ end
 
   Pre condition: is_function_point(node)
 
-  {node} TSNode The function point node to get metrics on.
+  @param TSNode node The function point node to get metrics on.
 ]]
 local function get_metrics(node)
   local metrics = {
@@ -182,7 +181,7 @@ end
 
 --[[ Return a string representation of a given node.
 
-  {node} TSNode The node to build a string representation for.
+  @param TSNode node The node to build a string representation for.
 ]]
 local function node2str(node)
   local range = {node:range()}
@@ -201,7 +200,9 @@ end
 
   Return a TSNode that is the identifier node of the given node.
 
-  {node} TSNode The node to get the naming node for.
+  @param TSNode node The node to get the naming node for.
+  @return TSNode The node that is the identifier node for the given node, this
+    node will contain the name of a function point.
 ]]
 local function get_name_node(node)
   for child in node:iter_children() do
@@ -223,7 +224,7 @@ end
 
 --[[ Collect and return all info in the current buffer.
 
-  Return a table listing up all the info structs of all the funcion points.
+  @return table A list of all the info structs of per function point.
 ]]
 local function all_info()
 
@@ -233,7 +234,8 @@ local function all_info()
 
     Return `true` if the given node is considered to a function point.
 
-    {node} TSNode The node to check for being a function point or not.
+    @param TSNode node The node to check for being a function point or not.
+    @return boolean Is the given node a function point?
   ]]
   local function is_function_point(node)
     return is_type(node, node_types)
@@ -243,9 +245,8 @@ local function all_info()
 
     Pre condition: is_function_point(node)
 
-    Return a table with information on the function point node.
-
-    {node} TSNode Function point node to build an info struct for.
+    @param TSNode node Function point node to build an info struct for.
+    @return table Info structure on the given function point node.
   ]]
   local function build_function_point_info(node)
     local info = {}
@@ -262,9 +263,10 @@ local function all_info()
     Return a table with info on each function point.
     Recursively traverse the whole node.
 
-    {node} TSNode Node to collect info on.
-    {info} table The list of info structures where info on the given node
+    @param TSNode node Node to collect info on.
+    @param table info The list of info structures where info on the given node
            will be collected... but only if we're dealing with a function point.
+    @return table List of info structures on each function point.
   ]]
   local function collect_function_point_info(node, info)
     if is_function_point(node) then
@@ -283,8 +285,7 @@ end
 
 --[[ Return a list of diagnostic structures.
 
-  Return a table containing the diagnostics for each function point that needs
-  some attention.
+  @return table Diagnostics for each function point that needs some attention.
 ]]
 local function get_diagnostics()
   local list = {}
@@ -301,10 +302,10 @@ end
 
 --[[ Handler for textDocument/publishDiagnostics
 
-  {err} ???
-  {result} ???
-  {ctx} table   The context for the diagnostics.
-  {config} table  Extra configuration; this will contain the `original_handler`
+  @param err ???
+  @pram result ???
+  @param table ctx The context for the diagnostics.
+  @param table config Extra config; this will contain the `original_handler`
 ]]
 local function diagnostics(err, result, ctx, config)
   vim.diagnostic.set(ns_id, currbuf(), get_diagnostics())
@@ -328,8 +329,9 @@ end
   This will prepend the given text with spaces so that it will appear centered
   when displayed in a given width.
 
-  {text} string The text that must be centered.
-  {width} int   The width to which the text must bbe centered.
+  @param string text The text that must be centered
+  @param int width The width to which the text must be centered
+  @return string The centered text
 ]]
 local function align_center(text, width)
   if #text >= width then return text end
@@ -339,7 +341,7 @@ end
 
 --[[ Open a window displaying the given function point info
 
-  {info} table Function point info containing the metrics to display.
+  @param table info Function point info containing the metrics to display.
 ]]
 local function open_metrics_window(info)
   local lines = {}
@@ -364,9 +366,8 @@ end
 
 --[[ Is our cursor positioned in a given range?
 
-  Return `true` if the cursor is currently in a given range.
-
-  {range} table The range as {row_start, col_start, row_end, col_end}
+  @param table range The range as {row_start, col_start, row_end, col_end}
+  @return boolean Whether or not the cursor is currently in a given range.
 ]]
 local function is_cursor_in_range(range)
   -- nvim_win_get_cursor() is 1-based, while ranges are 0-based
@@ -414,10 +415,9 @@ end
 
 --[[ Complete given options with defaults.
 
-  Return a table with all required options set.
-  See `default_options` for a list of options that Kokwame uses.
-
-  {opts} table The options to which default values for unset options will be added.
+  @param table opts Options to which default values will be added.
+  @return table Configuration with all required options set.
+  @see default_options For a list of options that Kokwame uses.
 ]]
 local function complete_options(opts)
   local opts = opts or {}
@@ -430,8 +430,8 @@ end
 
 --[[ Setup Kokwame
 
-  {opts} table Options for kokwame that will override the defaults.
-         See: default_options
+  @param table opts Options for kokwame that will override the defaults.
+  @see default_options
 ]]
 local function setup(opts)
   opts = complete_options(opts)
