@@ -17,6 +17,7 @@
 
 local parsers = require('nvim-treesitter.parsers')
 
+
 -- Use `currbuf()` to get the current buffer!
 --
 -- Reads fine as "current buffer" and is way less greedy on line length.
@@ -442,7 +443,27 @@ local function setup(opts)
 end
 
 
+local function test()
+  local buf = currbuf()
+  local language_tree = vim.treesitter.get_parser(buf, vim.bo.ft)
+  local syntax_tree = language_tree:parse()
+  local root = syntax_tree[1]:root()
+
+  local q1 = vim.treesitter.parse_query(vim.bo.ft, '')
+  local query = vim.treesitter.parse_query(vim.bo.ft, [[
+    (method_declaration name: (name) @function.name) @function.definition
+    (function_definition name: (name) @function.name) @function.definition
+  ]])
+
+
+  for _, captures, metadata in query:iter_matches(root, buf) do
+    print(vim.inspect(vim.treesitter.query.get_node_text(captures[1], buf)))
+  end
+end
+
+
 return {
   info = info,
   setup = setup,
+  test = test,
 }
