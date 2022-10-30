@@ -411,6 +411,7 @@ local function info()
       break
     end
   end
+  print(PLUGIN_NAME .. ": Cannot gather metrics; cursor is not inside a function point.")
 end
 
 
