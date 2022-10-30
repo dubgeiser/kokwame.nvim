@@ -25,6 +25,13 @@ local parsers = require('nvim-treesitter.parsers')
 -- lazy loading / caching later down the line.
 local currbuf = vim.api.nvim_get_current_buf
 
+-- Return the root node for the document in the current buffer.
+--
+-- @return TSNode
+local function rootnode()
+  return vim.treesitter.get_parser(buf, vim.bo.ft):parse()[1]:root()
+end
+
 local PLUGIN_NAME = 'Kokwame'
 
 -- The default options, which can be overridden by passing an identically
@@ -193,7 +200,7 @@ local function node2str(node)
   return node:type() ..
     ' (' .. start_row .. ', ' .. start_col .. ')' ..
     ' -> ' ..
-  '(' .. end_row .. ', ' .. end_col .. ')'
+    '(' .. end_row .. ', ' .. end_col .. ')'
 end
 
 
@@ -310,7 +317,7 @@ end
 ]]
 local function diagnostics(err, result, ctx, config)
   vim.diagnostic.set(ns_id, currbuf(), get_diagnostics())
- config.original_handler(err, result, ctx, config)
+  config.original_handler(err, result, ctx, config)
 end
 
 
@@ -446,9 +453,7 @@ end
 
 local function test()
   local buf = currbuf()
-  local language_tree = vim.treesitter.get_parser(buf, vim.bo.ft)
-  local syntax_tree = language_tree:parse()
-  local root = syntax_tree[1]:root()
+  local root = rootnode()
 
   local q1 = vim.treesitter.parse_query(vim.bo.ft, '')
   local query = vim.treesitter.parse_query(vim.bo.ft, [[
