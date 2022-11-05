@@ -415,7 +415,7 @@ local function info()
   for _, info in ipairs(all_info()) do
     if is_cursor_in_range({info.node:range()}) then
       open_metrics_window(info)
-      break
+      return
     end
   end
   print(PLUGIN_NAME .. ": Cannot gather metrics; cursor is not inside a function point.")
