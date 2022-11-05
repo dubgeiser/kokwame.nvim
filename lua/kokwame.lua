@@ -36,7 +36,7 @@ local PLUGIN_NAME = 'Kokwame'
 
 -- The default options, which can be overridden by passing an identically
 -- structured table as argument to the setup() function.
-local default_options = {
+local options = {
   -- Should Kokwame be a diagnostic producer?
   is_diagnostic_producer = false,
 }
@@ -428,12 +428,15 @@ end
   @return table Configuration with all required options set.
   @see default_options For a list of options that Kokwame uses.
 ]]
-local function complete_options(opts)
-  local opts = opts or {}
-  for k, v in pairs(default_options) do
-    if not opts[k] then opts[k] = v end
+local function set_options(opts)
+  opts = opts or {}
+  for k, v in pairs(opts) do
+    if options[k] == nil then
+      error('Unknown option ['..k..']')
+    else
+      options[k] = v
+    end
   end
-  return opts
 end
 
 
@@ -443,9 +446,9 @@ end
   @see default_options
 ]]
 local function setup(opts)
-  opts = complete_options(opts)
+  set_options(opts)
   vim.api.nvim_command('command! KokwameInfo lua require("kokwame").info()')
-  if opts.is_diagnostic_producer then
+  if options.is_diagnostic_producer then
     setup_diagnostic_producer()
   end
 end
