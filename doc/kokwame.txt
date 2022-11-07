@@ -50,11 +50,14 @@ example here uses the default options, which will have exactly the same effect
 as the `setup()` mentioned above. >
 
     require'kokwame'.setup({
-      -- `true` will have Kokwame function as a diagnostic producer.
-      is_diagnostic_producer = false,
+        -- Should Kokwame be a diagnostic producer?
+        is_diagnostic_producer = false,
+
+        -- Which type of border?
+        -- Will be used for vim.lsp.util.open_floating_preview()
+        border = 'rounded',
     })
 <
-:TODO: List the configuration options.
 ==============================================================================
 USAGE                                                          *kokwame-usage*
 

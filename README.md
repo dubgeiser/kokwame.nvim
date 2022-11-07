@@ -19,7 +19,14 @@ Kokwame can be installed via the default way of your favorite package manager.
 ```lua
 -- The options table is an optional argument,
 -- it is shown here with the default value for produce_diagnostics
-require('kokwame').setup({ produce_diagnostics = false })
+require('kokwame').setup({
+  -- Should Kokwame be a diagnostic producer?
+  is_diagnostic_producer = false,
+
+  -- Which type of border?
+  -- Will be used for vim.lsp.util.open_floating_preview()
+  border = 'rounded',
+})
 ```
 
 ## Usage

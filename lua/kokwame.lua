@@ -39,6 +39,10 @@ local PLUGIN_NAME = 'Kokwame'
 local options = {
   -- Should Kokwame be a diagnostic producer?
   is_diagnostic_producer = false,
+
+  -- Which type of border?
+  -- Will be used for vim.lsp.util.open_floating_preview()
+  border = 'rounded',
 }
 
 -- The node types that are considered to be function points.
@@ -362,6 +366,7 @@ local function open_metrics_window(info)
   table.insert(lines, 1, align_center(info.name, max_width))
   table.insert(lines, 2, '')
   local opts = {
+    border = options.border,
     height = #lines, -- Including top/bottom padding if necessary
     width = max_width,
     wrap = false,
