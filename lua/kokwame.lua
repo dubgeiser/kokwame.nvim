@@ -264,7 +264,7 @@ local function all_info()
     local info = {}
     local identifier = get_name_node(node)
     info.node = node
-    info.name = vim.treesitter.query.get_node_text(identifier, currbuf())
+    info.name = vim.treesitter.get_node_text(identifier, currbuf())
     info.range = {identifier:range()}
     info.metrics = get_metrics(node)
     return info
@@ -395,6 +395,9 @@ end
 
   There's probably a more efficient way to find the relevant node_info for
   the current cursor position.
+
+  Note that vim.treesitter.get_node_at_pos() and ...get_node_at_cursor() are
+  both deprecated in favor of vim.treesitter.get_node()!
   But I've been experimenting with `tsutils.get_node_at_cursors()` and then
   traveling up the tree via `node:parent()` but this gets quite hairy if you
   want to take some expected UI behavior into account:
@@ -463,15 +466,15 @@ local function test()
   local buf = currbuf()
   local root = rootnode()
 
-  local q1 = vim.treesitter.parse_query(vim.bo.ft, '')
-  local query = vim.treesitter.parse_query(vim.bo.ft, [[
+  local q1 = vim.treesitter.query.parse(vim.bo.ft, '')
+  local query = vim.treesitter.query.parse(vim.bo.ft, [[
     (method_declaration name: (name) @function.name) @function.definition
     (function_definition name: (name) @function.name) @function.definition
   ]])
 
 
   for _, captures, metadata in query:iter_matches(root, buf) do
-    print(vim.inspect(vim.treesitter.query.get_node_text(captures[1], buf)))
+    print(vim.inspect(vim.treesitter.get_node_text(captures[1], buf)))
   end
 end
 
