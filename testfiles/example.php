@@ -19,6 +19,13 @@ class WanToe {
 class TestingWan {
     private $name = 'Per';
 
+    # !!! Cyclomatic complexity should be 4 here
+    public function methodError() {
+        if (a == 1 || (b > 5 && c == 3)) {
+            return null;
+        }
+    }
+
     # Cyclomatic complexity: <= 7 -> INFO (not shown by default)
     public function methodOne($name = null) {
         if (null !== $name || $name === "Per" or $name == 'per' and $name != 'Peter' && false) {
