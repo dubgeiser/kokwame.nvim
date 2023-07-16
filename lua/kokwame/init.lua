@@ -59,19 +59,15 @@ local name_node_types = {
 -- The ID of the namespace we'll be using for this plugin.
 local ns_id = vim.api.nvim_create_namespace(PLUGIN_NAME)
 
+-- Cyclomatic cmplexity metric.
+-- For every one of these operations 1 is added to the total value:
+--    * Every branch of a condition (if / elif / else)
+--    * Every iteration
+--    * Every logical operator
+--    * The entry point of the method or function
 local CyclomaticComplexityMetric = {}
---[[ Create a new cyclomatic complexity metric.
 
-  Return a new CyclomaticComplexityMetric for a given function point node.
-
-  For every one of these operations 1 is added to the total value:
-     * Every branch of a condition (if / elif / else)
-     * Every iteration
-     * Every logical operator
-     * The entry point of the method or function
-
-  @param TSNode node The node that this metric will be applied to.
-]]
+---@param node TSNode The node that this metric will be applied to.
 CyclomaticComplexityMetric.new = function(node)
   local self = {}
   local value = nil
@@ -88,12 +84,8 @@ CyclomaticComplexityMetric.new = function(node)
     case_statement = 1,
   }
 
-  --[[ Calculate this metric for a given node.
-
-    @param TSNode node The function point node to calculate this metric for.
-    @param boolean recursing Optional toggle indicating that we are calling from
-      `calculate` itself.
-  ]]
+  ---@param node TSNode The function point to calculate this metric for.
+  ---@param recursing boolean|nil Whether or not we are recursing.
   local function calculate(node, recursing)
     recursing = recursing or false
     value = value or 0
@@ -109,21 +101,13 @@ CyclomaticComplexityMetric.new = function(node)
     end
   end
 
-  --[[ Are we dealing with a problematic metric?
-
-    @return boolean Whether or not we're dealing with a problematic result for
-      this metric.
-  ]]
+  ---@return boolean
   function self.is_problematic()
     return value > threshold_low
   end
 
-  --[[ Convert this metric to a diagnostic structure.
-
-    Build and return this metric as an LSP diagnostic structure.
-
-    @param table info Information on the node that this metric belongs to.
-  ]]
+  ---@param info table Information on the node that this metric belongs to.
+  ---@return table - LSP diagnostic structure
   function self.to_diagnostic(info)
     local severity = vim.diagnostic.severity.INFO
     local message = 'Cyclomatic Complexity: ' .. value
@@ -151,13 +135,9 @@ CyclomaticComplexityMetric.new = function(node)
   return self
 end
 
---[[ Is the node of a certain type?
-
-  @param TSNode node The node to check agains a list of types.
-  @param table types The list of node types to check against.
-  @return boolean Whether or not the type of the given node is in the list of
-    given node types.
-]]
+---@param node TSNode The node to check against a list of types.
+---@param types table The list of types to check against
+---@return boolean
 local function is_type(node, types)
   local t = node:type()
   for _, ctype in ipairs(types) do
@@ -168,12 +148,9 @@ local function is_type(node, types)
   return false
 end
 
---[[ Get metrics for a given node representing a function point.
-
-  Pre condition: is_function_point(node)
-
-  @param TSNode node The function point node to get metrics on.
-]]
+---@param node TSNode The function point node to get metrics on.
+---                   pre condition: is_function_point(node)
+---@return CyclomaticComplexityMetric
 local function get_metrics(node)
   local metrics = {
     CyclomaticComplexityMetric.new(node),
@@ -182,10 +159,8 @@ local function get_metrics(node)
 end
 
 
---[[ Return a string representation of a given node.
-
-  @param TSNode node The node to build a string representation for.
-]]
+---@param node TSNode The node to build a string represenation for.
+---@return string
 local function node2str(node)
   local range = { node:range() }
   local start_row = range[1] + 1
@@ -198,14 +173,9 @@ local function node2str(node)
       '(' .. end_row .. ', ' .. end_col .. ')'
 end
 
---[[ Given a function point node, find and return its naming node (identifier)
-
-  Return a TSNode that is the identifier node of the given node.
-
-  @param TSNode node The node to get the naming node for.
-  @return TSNode The node that is the identifier node for the given node, this
-    node will contain the name of a function point.
-]]
+---@param node TSNode The node to get the naming node for (its identifier)
+---@return TSNode - The node that is the identifier for the given node, this
+---                 will contain the name of a function point.
 local function get_name_node(node)
   for child in node:iter_children() do
     if is_type(child, name_node_types) then
@@ -223,31 +193,19 @@ local function get_name_node(node)
   )
 end
 
---[[ Collect and return all info in the current buffer.
-
-  @return table A list of all the info structs of per function point.
-]]
+---@return table - A list of all the info structures per function point in the
+---                current buffer.
 local function all_info()
   if not parsers.has_parser() then return {} end
 
-  --[[ Is the given node a function point node?
-
-    Return `true` if the given node is considered to a function point.
-
-    @param TSNode node The node to check for being a function point or not.
-    @return boolean Is the given node a function point?
-  ]]
+  ---@param node TSNode
+  ---@return boolean - Whether or not the given node is a function point.
   local function is_function_point(node)
     return is_type(node, node_types)
   end
 
-  --[[ Build info for a function point node
-
-    Pre condition: is_function_point(node)
-
-    @param TSNode node Function point node to build an info struct for.
-    @return table Info structure on the given function point node.
-  ]]
+  ---@param node TSNode
+  ---@return table - Info structure of the given function point node.
   local function build_function_point_info(node)
     local info = {}
     local identifier = get_name_node(node)
@@ -258,16 +216,9 @@ local function all_info()
     return info
   end
 
-  --[[ Collect and return info about a function point node
-
-    Return a table with info on each function point.
-    Recursively traverse the whole node.
-
-    @param TSNode node Node to collect info on.
-    @param table info The list of info structures where info on the given node
-           will be collected... but only if we're dealing with a function point.
-    @return table List of info structures on each function point.
-  ]]
+  ---@param node TSNode
+  ---@param info table[table] List of info structs on the given node
+  ---@return table[table] List of info structures on each function point.
   local function collect_function_point_info(node, info)
     if is_function_point(node) then
       table.insert(info, build_function_point_info(node))
@@ -282,10 +233,7 @@ local function all_info()
   return collect_function_point_info(parsers.get_tree_root(), {})
 end
 
---[[ Return a list of diagnostic structures.
-
-  @return table Diagnostics for each function point that needs some attention.
-]]
+---@return table - Diagnostics for each function point that is problematic.
 local function get_diagnostics()
   local list = {}
   for _, each in ipairs(all_info()) do
@@ -298,20 +246,15 @@ local function get_diagnostics()
   return list
 end
 
---[[ Handler for textDocument/publishDiagnostics
-
-  @param err ???
-  @pram result ???
-  @param table ctx The context for the diagnostics.
-  @param table config Extra config; this will contain the `original_handler`
-]]
+---@param err any?
+---@param result any?
+---@param ctx table The context for the diagnostics.
+---@param config table Extra config; this will contain the `original_handler`.
 local function diagnostics(err, result, ctx, config)
   vim.diagnostic.set(ns_id, currbuf(), get_diagnostics())
   config.original_handler(err, result, ctx, config)
 end
 
---[[ Set up Kokwame as diagnostic producer.
-]]
 local function setup_diagnostic_producer()
   local original_handler = vim.lsp.handlers['textDocument/publishDiagnostics']
   vim.lsp.handlers['textDocument/publishDiagnostics'] = vim.lsp.with(diagnostics, {
@@ -319,25 +262,15 @@ local function setup_diagnostic_producer()
   })
 end
 
---[[ Center a given text according to a given width.
-
-  Return a string with givnen text centered.
-  This will prepend the given text with spaces so that it will appear centered
-  when displayed in a given width.
-
-  @param string text The text that must be centered
-  @param int width The width to which the text must be centered
-  @return string The centered text
-]]
+---@param text string The text to center.
+---@param width integer Width to center the text against
+---@return string - The centered text
 local function align_center(text, width)
   if #text >= width then return text end
   return string.rep(' ', math.floor((width - #text) / 2)) .. text
 end
 
---[[ Open a window displaying the given function point info
-
-  @param table info Function point info containing the metrics to display.
-]]
+---@param info table Info on function point, contains the metrics to display.
 local function open_metrics_window(info)
   local lines = {}
   local max_width = #info.name
@@ -359,11 +292,8 @@ local function open_metrics_window(info)
   vim.lsp.util.open_floating_preview(lines, 'markdown', opts)
 end
 
---[[ Is our cursor positioned in a given range?
-
-  @param table range The range as {row_start, col_start, row_end, col_end}
-  @return boolean Whether or not the cursor is currently in a given range.
-]]
+---@param range table The range; {row_start, col_start, row_end, col_end}
+---@return boolean - Is the cursor in the given range?
 local function is_cursor_in_range(range)
   -- nvim_win_get_cursor() is 1-based, while ranges are 0-based
   local row_cursor = vim.api.nvim_win_get_cursor(0)[1] - 1
@@ -410,12 +340,7 @@ function M.info()
   print(PLUGIN_NAME .. ": Cannot gather metrics; cursor is not inside a function point.")
 end
 
---[[ Complete given options with defaults.
-
-  @param table opts Options to which default values will be added.
-  @return table Configuration with all required options set.
-  @see default_options For a list of options that Kokwame uses.
-]]
+---@param opts table Options to which default options will be added if not set.
 local function set_options(opts)
   opts = opts or {}
   for k, v in pairs(opts) do
@@ -427,11 +352,8 @@ local function set_options(opts)
   end
 end
 
---[[ Setup Kokwame
-
-  @param table opts Options for kokwame that will override the defaults.
-  @see default_options
-]]
+---@param opts table Options for Kokwame overriding the defaults.
+---@see options
 function M.setup(opts)
   set_options(opts)
   vim.api.nvim_command('command! KokwameInfo lua require("kokwame").info()')
