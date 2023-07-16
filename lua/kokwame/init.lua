@@ -25,14 +25,8 @@ local parsers = require('nvim-treesitter.parsers')
 -- lazy loading / caching later down the line.
 local currbuf = vim.api.nvim_get_current_buf
 
--- Return the root node for the document in the current buffer.
---
--- @return TSNode
-local function rootnode()
-  return vim.treesitter.get_parser(buf, vim.bo.ft):parse()[1]:root()
-end
-
 local PLUGIN_NAME = 'Kokwame'
+local M = {}
 
 -- The default options, which can be overridden by passing an identically
 -- structured table as argument to the setup() function.
@@ -64,7 +58,6 @@ local name_node_types = {
 
 -- The ID of the namespace we'll be using for this plugin.
 local ns_id = vim.api.nvim_create_namespace(PLUGIN_NAME)
-
 
 local CyclomaticComplexityMetric = {}
 --[[ Create a new cyclomatic complexity metric.
@@ -158,7 +151,6 @@ CyclomaticComplexityMetric.new = function(node)
   return self
 end
 
-
 --[[ Is the node of a certain type?
 
   @param TSNode node The node to check agains a list of types.
@@ -175,7 +167,6 @@ local function is_type(node, types)
   end
   return false
 end
-
 
 --[[ Get metrics for a given node representing a function point.
 
@@ -196,17 +187,16 @@ end
   @param TSNode node The node to build a string representation for.
 ]]
 local function node2str(node)
-  local range = {node:range()}
+  local range = { node:range() }
   local start_row = range[1] + 1
   local start_col = range[2]
   local end_row = range[3] + 1
   local end_col = range[4]
   return node:type() ..
-    ' (' .. start_row .. ', ' .. start_col .. ')' ..
-    ' -> ' ..
-    '(' .. end_row .. ', ' .. end_col .. ')'
+      ' (' .. start_row .. ', ' .. start_col .. ')' ..
+      ' -> ' ..
+      '(' .. end_row .. ', ' .. end_col .. ')'
 end
-
 
 --[[ Given a function point node, find and return its naming node (identifier)
 
@@ -233,13 +223,11 @@ local function get_name_node(node)
   )
 end
 
-
 --[[ Collect and return all info in the current buffer.
 
   @return table A list of all the info structs of per function point.
 ]]
 local function all_info()
-
   if not parsers.has_parser() then return {} end
 
   --[[ Is the given node a function point node?
@@ -265,7 +253,7 @@ local function all_info()
     local identifier = get_name_node(node)
     info.node = node
     info.name = vim.treesitter.get_node_text(identifier, currbuf())
-    info.range = {identifier:range()}
+    info.range = { identifier:range() }
     info.metrics = get_metrics(node)
     return info
   end
@@ -294,7 +282,6 @@ local function all_info()
   return collect_function_point_info(parsers.get_tree_root(), {})
 end
 
-
 --[[ Return a list of diagnostic structures.
 
   @return table Diagnostics for each function point that needs some attention.
@@ -311,7 +298,6 @@ local function get_diagnostics()
   return list
 end
 
-
 --[[ Handler for textDocument/publishDiagnostics
 
   @param err ???
@@ -324,7 +310,6 @@ local function diagnostics(err, result, ctx, config)
   config.original_handler(err, result, ctx, config)
 end
 
-
 --[[ Set up Kokwame as diagnostic producer.
 ]]
 local function setup_diagnostic_producer()
@@ -333,7 +318,6 @@ local function setup_diagnostic_producer()
     original_handler = original_handler,
   })
 end
-
 
 --[[ Center a given text according to a given width.
 
@@ -350,7 +334,6 @@ local function align_center(text, width)
   return string.rep(' ', math.floor((width - #text) / 2)) .. text
 end
 
-
 --[[ Open a window displaying the given function point info
 
   @param table info Function point info containing the metrics to display.
@@ -359,7 +342,7 @@ local function open_metrics_window(info)
   local lines = {}
   local max_width = #info.name
   for i, metric in ipairs(info.metrics) do
-    local line = ' '..i..'. '..metric.to_diagnostic(info).message..' '
+    local line = ' ' .. i .. '. ' .. metric.to_diagnostic(info).message .. ' '
     max_width = math.max(max_width, #line)
     table.insert(lines, line)
   end
@@ -376,7 +359,6 @@ local function open_metrics_window(info)
   vim.lsp.util.open_floating_preview(lines, 'markdown', opts)
 end
 
-
 --[[ Is our cursor positioned in a given range?
 
   @param table range The range as {row_start, col_start, row_end, col_end}
@@ -389,7 +371,6 @@ local function is_cursor_in_range(range)
   local row_node_end = range[3]
   return row_cursor >= row_node_start and row_cursor <= row_node_end
 end
-
 
 --[[ Show info for the current function point.
 
@@ -419,16 +400,15 @@ end
   code that is performant enough to not worry about it.
   If not, we can still make it _very_ hairy ;-)
 ]]
-local function info()
+function M.info()
   for _, info in ipairs(all_info()) do
-    if is_cursor_in_range({info.node:range()}) then
+    if is_cursor_in_range({ info.node:range() }) then
       open_metrics_window(info)
       return
     end
   end
   print(PLUGIN_NAME .. ": Cannot gather metrics; cursor is not inside a function point.")
 end
-
 
 --[[ Complete given options with defaults.
 
@@ -440,20 +420,19 @@ local function set_options(opts)
   opts = opts or {}
   for k, v in pairs(opts) do
     if options[k] == nil then
-      error('Unknown option ['..k..']')
+      error('Unknown option [' .. k .. ']')
     else
       options[k] = v
     end
   end
 end
 
-
 --[[ Setup Kokwame
 
   @param table opts Options for kokwame that will override the defaults.
   @see default_options
 ]]
-local function setup(opts)
+function M.setup(opts)
   set_options(opts)
   vim.api.nvim_command('command! KokwameInfo lua require("kokwame").info()')
   if options.is_diagnostic_producer then
@@ -461,26 +440,4 @@ local function setup(opts)
   end
 end
 
-
-local function test()
-  local buf = currbuf()
-  local root = rootnode()
-
-  local q1 = vim.treesitter.query.parse(vim.bo.ft, '')
-  local query = vim.treesitter.query.parse(vim.bo.ft, [[
-    (method_declaration name: (name) @function.name) @function.definition
-    (function_definition name: (name) @function.name) @function.definition
-  ]])
-
-
-  for _, captures, metadata in query:iter_matches(root, buf) do
-    print(vim.inspect(vim.treesitter.get_node_text(captures[1], buf)))
-  end
-end
-
-
-return {
-  info = info,
-  setup = setup,
-  test = test,
-}
+return M
