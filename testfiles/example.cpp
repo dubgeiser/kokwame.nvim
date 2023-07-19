@@ -1,5 +1,6 @@
 #include<lua.h>
 
+// Cyclomatic complexity should be 7
 int tslua_add_language(lua_State *L)
 {
     if ((lua_gettop(L) < 2 || !lua_isstring(L, 1)) && !lua_isstring(L, 2)) {
