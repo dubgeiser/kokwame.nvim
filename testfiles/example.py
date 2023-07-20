@@ -1,3 +1,6 @@
+def testing_separate_function() -> None:
+    print("The owls are not what they seem")
+
 
 class TestingWanToe:
 
@@ -6,6 +9,11 @@ class TestingWanToe:
 
     # Cyclomatic complexity: 12
     def get_name(self) -> str:
+        a = [i for i in [j for j in range(0, 10)]]
+        while True:
+            print("hello")
+            break
+
         if self.name ==  'string' or self == 'String':
             return self.name
         elif self.name == 'int' or self.name == 'float' and self.name != 'object' or self.name == 'fubar' and self.name != 'foobar':

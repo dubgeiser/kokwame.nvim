@@ -14,8 +14,9 @@ end
 function M.test()
   local buf = vim.api.nvim_get_current_buf()
   local root = vim.treesitter.get_parser(buf, vim.bo.ft):parse()[1]:root()
-  print_query_matches(root, buf, 'kokwame-functions')
+  -- print_query_matches(root, buf, 'kokwame-functions')
   print_query_matches(root, buf, 'kokwame-conditionals')
+  -- print_query_matches(root, buf, 'kokwame-iterations')
 end
 
 return M

@@ -6,6 +6,23 @@ function fubar(int $number) {
 
 class WanToe {
     function getName() {
+        for ($i = 0; $i < 10; $i++) {
+            echo $i, "\n";
+        }
+        while (true) {
+            echo "Hello\n";
+            break;
+        }
+        do {
+            echo "one time\n";
+        } while(false);
+        if ($i == 0) {
+            return 0;
+        } elseif ($i < 5) {
+            return 5;
+        } else {
+            return 10;
+        }
         return 'name';
     }
 
