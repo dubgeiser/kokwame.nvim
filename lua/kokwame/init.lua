@@ -1,15 +1,16 @@
 --[[ Kokwame - Code Quality Metrics
 
-  Neovim lua module to calculate some code quality metrics on function points.
+  Neovim lua module to calculate some code quality metrics on functions.
 
-  A function point is basically a TSNode of a function, method, ...
+  A function is a TSNode representing a function or a method.
   These function points are collected into a list, each element in following
   table structure:
 
-     * 'name' = the name
+     * 'name' = the name of the function
      * 'node' = the node itself
-     * 'range' = {line_start, col_start, line_end, col_end } of the name
+     * 'range_name' = {line_start, col_start, line_end, col_end } of the name
      * 'metrics' = the metrics for that specific node
+     * 'has_cursor()' = whether or not the cursor is somewhere in the fucntion
 
   See the function `build_function_point_info` for the real code version of
   this structure.
@@ -119,10 +120,10 @@ CyclomaticComplexityMetric.new = function(node)
       severity = vim.diagnostic.severity.INFO
     end
     local diagnostic = {
-      lnum = info.range[1],
-      col = info.range[2],
-      end_lnum = info.range[3],
-      end_col = info.range[4],
+      lnum = info.range_name[1],
+      col = info.range_name[2],
+      end_lnum = info.range_name[3],
+      end_col = info.range_name[4],
       severity = severity,
       message = message,
       source = PLUGIN_NAME,
@@ -148,8 +149,7 @@ local function is_type(node, types)
   return false
 end
 
----@param node TSNode The function point node to get metrics on.
----                   pre condition: is_function_point(node)
+---@param node TSNode The function node to get metrics on.
 ---@return CyclomaticComplexityMetric
 local function get_metrics(node)
   local metrics = {
@@ -186,51 +186,46 @@ local function get_name_node(node)
   end
   error(
     'ERROR: Cannot find the name node [' .. node2str(node) .. ']\n' ..
-    'This probably means get_name_node() was called without checking the ' ..
-    'result of is_function_point() on that same node.\n' ..
-    'Or there is another type() of children of node that is not yet ' ..
-    'accounted for in get_name_node()'
+    'This probably means get_name_node() was called on a non-function node\n' ..
+    'Or there is another node type not yet accounted for in get_name_node()\n'
   )
 end
 
----@return table - A list of all the info structures per function point in the
----                current buffer.
+---@param node TSNode
+---@return table - Info structure of the given function point node.
+local function build_function_info(node, buf)
+  local identifier = get_name_node(node)
+  -- nvim_win_get_cursor() is 1-based, while ranges are 0-based
+  local cursor_row = vim.api.nvim_win_get_cursor(0)[1] - 1
+  local start_row, start_col, end_row, end_col = node:range()
+
+  local info = {}
+  info.name = vim.treesitter.get_node_text(identifier, buf)
+  info.node = node
+  info.range_name = { identifier:range() }
+  info.metrics = get_metrics(node)
+  info.has_cursor = function ()
+    return  cursor_row >= start_row and cursor_row <= end_row
+  end
+  return info
+end
+
+---@return table - A list of all the info structs for each function in the
+---                current buffer
 local function all_info()
   if not parsers.has_parser() then return {} end
-
-  ---@param node TSNode
-  ---@return boolean - Whether or not the given node is a function point.
-  local function is_function_point(node)
-    return is_type(node, node_types)
-  end
-
-  ---@param node TSNode
-  ---@return table - Info structure of the given function point node.
-  local function build_function_point_info(node)
-    local info = {}
-    local identifier = get_name_node(node)
-    info.node = node
-    info.name = vim.treesitter.get_node_text(identifier, currbuf())
-    info.range = { identifier:range() }
-    info.metrics = get_metrics(node)
-    return info
-  end
-
-  ---@param node TSNode
-  ---@param info table[table] List of info structs on the given node
-  ---@return table[table] List of info structures on each function point.
-  local function collect_function_point_info(node, info)
-    if is_function_point(node) then
-      table.insert(info, build_function_point_info(node))
-    else
-      for child in node:iter_children() do
-        collect_function_point_info(child, info)
-      end
+  local info = {}
+  local root = parsers.get_tree_root()
+  local buf = vim.api.nvim_get_current_buf()
+  local ft = vim.bo.filetype
+  -- TODO Fool proofing; this breaks if no query files exist for a file type
+  local query = vim.treesitter.query.get(ft, 'kokwame-functions')
+  for _, match, metadata in query:iter_matches(root, buf) do
+    for id, node in pairs(match) do
+      table.insert(info, build_function_info(node, buf))
     end
-    return info
   end
-
-  return collect_function_point_info(parsers.get_tree_root(), {})
+  return info
 end
 
 ---@return table - Diagnostics for each function point that is problematic.
@@ -292,16 +287,6 @@ local function open_metrics_window(info)
   vim.lsp.util.open_floating_preview(lines, 'markdown', opts)
 end
 
----@param range table The range; {row_start, col_start, row_end, col_end}
----@return boolean - Is the cursor in the given range?
-local function is_cursor_in_range(range)
-  -- nvim_win_get_cursor() is 1-based, while ranges are 0-based
-  local row_cursor = vim.api.nvim_win_get_cursor(0)[1] - 1
-  local row_node_start = range[1]
-  local row_node_end = range[3]
-  return row_cursor >= row_node_start and row_cursor <= row_node_end
-end
-
 --[[ Show info for the current function point.
 
   There's probably a more efficient way to find the relevant node_info for
@@ -332,7 +317,7 @@ end
 ]]
 function M.info()
   for _, info in ipairs(all_info()) do
-    if is_cursor_in_range({ info.node:range() }) then
+    if info.has_cursor() then
       open_metrics_window(info)
       return
     end
