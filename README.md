@@ -1,4 +1,5 @@
 # Kokwame
+Disclaimer: Kokwame is very much pre-alpha!
 
 Code Quality Metrics
 KOde KWality MEtrics, gettit (I'll get me coat).
